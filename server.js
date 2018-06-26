@@ -1,3 +1,40 @@
+/**
+ * This is YoungBlood. Developed by Brayden Moon AKA Crazywolf132.
+ * 
+ * This is a facebook messenger bot re-imagined. This is developed to help teenagers and young
+ * adults talk to someone without needing to signup to a completely different website and using
+ * a hard to use chat system.
+ * 
+ * They will be able to use their more familiar facebook messenger chat.
+ * 
+ * To make this different and confidential. Users will talk to our bot, which will
+ * relay the messages to the helper on the other end. Rather than directly talking to that person,
+ * as some might feel embarassed or such. As it is a way to mask ones identity. 
+ * 
+ * The only information we ask for is a username and a DOB. The DOB is required so we can 
+ * try to keep the 17 and unders, talking to themselves. As we dont want "creepy" older people to be
+ * able to talk to them. 
+ * 
+ * We could always follow this up by requesting their facebook DOB.
+ * 
+ * 
+ * There will be a way for the In-need to report a helper if shit does hit the fan aswell.
+ * As we dont want people abusing the system and using it as a way to push people to doing things
+ * they dont want to.
+ * 
+ * There will also be a system to allow for the listeners to Notify us that there is a problem in the
+ * chat, that they are not comfortable with. An admin should be able to step in then.
+ * 
+ * Another system should be inplace to detect life threatening messages coming from the in-need. 
+ * Such as talk of killing one's self. At which point the bot will display a quick toggle to call the
+ * suicide-hotline.
+ * 
+ * This bot is not being created as a replacement to an organsiation such as suicide-hotline. Instead
+ * it is a replacement to other peer support websites and applications/services.
+ */
+
+
+
 const express = require("express");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
