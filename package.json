@@ -1,0 +1,29 @@
+{
+  "name": "youngblood",
+  "version": "1.0.0",
+  "description": "A new way for teens to seek help.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crazywolf132/YoungBlood.git"
+  },
+  "author": "CrazyWolf",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/crazywolf132/YoungBlood/issues"
+  },
+  "homepage": "https://github.com/crazywolf132/YoungBlood#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "eventemitter3": "^3.1.0",
+    "express": "^4.16.3",
+    "morgan": "^1.9.0",
+    "node-fetch": "^2.1.2",
+    "request": "^2.87.0",
+    "stylus": "^0.54.5"
+  }
+}
