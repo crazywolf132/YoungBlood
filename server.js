@@ -96,6 +96,13 @@ share.seenMessage = (sender) => {
     });
 };
 
+
+/**
+ * This is where every message is processed. Everything that comes through the bot,
+ * will first come here... so we can workout what the hell to do with it.
+ * @param {String} message 
+ * @param {String} sender 
+ */
 share.handle = (message, sender) => {
     /**
      * We cannot assume that the first person is already connected to the second person...
@@ -111,6 +118,15 @@ share.handle = (message, sender) => {
 
     } else {
         // We need to ask them for some details now...
+        // First we are going to check to see if we have ever seen this person...
+        if (sender in status) {
+            // Guess we dont need to ask them any questions... We already have their information.
+            // We just need to connect them to someone.
+        } else {
+            // This person is brand new. Lets get them setup.
+            // We will send them a few messages asking for some details, aswell as saying what this service is.
+            // Aswell as what information we will be keeping and such.
+        }
     }
 
 }
@@ -121,7 +137,12 @@ share.handle = (message, sender) => {
 
 // Now for the mind numbing functions to make this all possible.
 
-
+/**
+ * This function is used to send the api requests to facebook.
+ * @param {String|Object} body
+ * @param {String} endpoint
+ * @param {String} method
+ */
 sendRequest = (body, endpoint, method) => {
     endpoint = endpoint || 'messages';
     method = method || 'POST';
