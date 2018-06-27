@@ -38,50 +38,18 @@
 const express = require("express");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
+const fetch = require("node-fetch");
+const EventEmitter = require("eventemitter3");
+const nlp = require("compromise");
 
 const presets = require("./helper/presets");
 const config = require("./config/config");
+const messenger = require("./helper/messenger");
 
 const app = express();
 const port = process.env.PORT || 80;
 const token = config.accessToken;
-
-
-/*
- ██████  ██████  ██████  ███████
-██      ██    ██ ██   ██ ██
-██      ██    ██ ██████  █████
-██      ██    ██ ██   ██ ██
- ██████  ██████  ██   ██ ███████
-*/
-app.use(morgan("dev"));
-app.use(bodyParser.json());
-app.use(
-    bodyParser.urlencoded({
-        extended: true,
-    })
-)
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept"
-    );
-    next();
-})
-
-
-/*
-██████   ██████  ██    ██ ████████ ███████ ███████
-██   ██ ██    ██ ██    ██    ██    ██      ██
-██████  ██    ██ ██    ██    ██    █████   ███████
-██   ██ ██    ██ ██    ██    ██    ██           ██
-██   ██  ██████   ██████     ██    ███████ ███████
-*/
-const webhook = require("./routes/webhook");
-app.use("/webhook", webhook);
-
-
+const appSecret = config.appSecret;
 
 
 /*
@@ -127,11 +95,6 @@ var share = (module.exports = {});
 
 share.db = status;
 
-share.sendOff = (sender, message, options) => {
-    sendMessage(sender, message, options);
-}
-
-
 /**
  * This function is used for showing the sender that we have recieved their message...
  * Eventually I would like to make it so the first user only gets this once the second user has seen the message.
@@ -160,15 +123,16 @@ share.handle = (message, sender) => {
      * 2) Check to see what mode they want, Helper or In-need.
      * Only then can we send the message from person1 to person2.
      */
+    console.log(`Recieved from ${sender}: ${message}`);
 
-    if (sender in connections) {
+    if (sender in connections && status[sender].gettingStartedStage == -1) {
         // Cool. so the person is in here... we just have to pass on the message...
         var partner = connection[sender]; // Collecting their partners ID.
 
     } else {
         // We need to ask them for some details now...
         // First we are going to check to see if we have ever seen this person...
-        if (sender in status) {
+        if (sender in status && status[sender].gettingStartedStage == -1) {
             // Guess we dont need to ask them any questions... We already have their information.
             // We just need to connect them to someone.
             // or check to see if they have entered a known command.
@@ -179,6 +143,8 @@ share.handle = (message, sender) => {
             // Aswell as what information we will be keeping and such.
             status[sender] = {}
             status[sender].username = ""
+            status[sender].gettingStartedStage == 0;
+            presets.getStarted(messenger.respond, sender);
         }
     }
 
@@ -186,88 +152,65 @@ share.handle = (message, sender) => {
 
 
 
+_verifyRequestSignature = (req, res, buf) => {
+  var signature = req.headers["x-hub-signature"];
+  if (!signature) {
+    throw new Error("Couldn't validate the request signature.");
+  } else {
+    var elements = signature.split("=");
+    var method = elements[0];
+    var signatureHash = elements[1];
+    var expectedHash = crypto
+      .createHmac("sha1", appSecret)
+      .update(buf)
+      .digest("hex");
 
-
-// Now for the mind numbing functions to make this all possible.
-
-/**
- * This function is used to send the api requests to facebook.
- * @param {String|Object} body
- * @param {String} endpoint
- * @param {String} method
- */
-sendRequest = (body, endpoint, method) => {
-    endpoint = endpoint || 'messages';
-    method = method || 'POST';
-    return fetch(`https://graph.facebook.com/v2.6/me/${endpoint}?access_token=${token}`, {
-        method,
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    })
-        .then(res => res.json())
-        .then(res => {
-            return res;
-        })
-        .catch(err => console.log(`Error sending message: ${err}`));
-}
-
-/**
- * Used for proccessing the message to send to whoever.
- * @param {String} userID
- * @param {String|Object} message
- * @param {Object} options
- */
-sendMessage = (userID, message, options) => {
-  const recipient = _createRecipient(userID);
-  const messagingType = options && options.messagingType;
-  const notificationType = options && options.notificationType;
-  const tag = options && options.tag;
-  const onDelivery = options && options.onDelivery;
-  const onRead = options && options.onRead;
-  const reqBody = {
-    recipient,
-    message,
-    messaging_type: messagingType || "RESPONSE"
-  };
-
-  // There are optional params, only add them to the request body
-  // if they are definied.
-  if (notificationType) {
-    reqBody.notification_type = notificationType;
+    if (signatureHash != expectedHash) {
+      throw new Error("Couldn't validate the request signature.");
+    }
   }
-  if (tag) {
-    reqBody.tag = tag;
-  }
-
-  const req = () =>
-    sendRequest(reqBody).then(json => {
-      if (typeof onDelivery === "function") {
-        EventEmitter.once("delivery", onDelivery);
-      }
-      if (typeof onRead === "function") {
-        EventEmitter.once("read", onRead);
-      }
-      return json;
-    });
-  if (options && options.typing) {
-    const autoTimeout =
-      message && message.text ? message.text.length * 10 : 1000;
-    const timeout =
-      typeof options.typing === "number" ? options.typing : autoTimeout;
-    return sendTypingIndicator(userID, timeout).then(req);
-  }
-  return req();
 };
 
-/**
- * This function is used to extract the users ID if it is in an object.
- * @param {Object|String} recipient
- */
-_createRecipient = (recipient) => {
-    return (typeof recipient === 'object') ? recipient : { id: recipient };
-}
+
+/*
+ ██████  ██████  ██████  ███████
+██      ██    ██ ██   ██ ██
+██      ██    ██ ██████  █████
+██      ██    ██ ██   ██ ██
+ ██████  ██████  ██   ██ ███████
+*/
+app.use(morgan("dev"));
+app.use(bodyParser.json());
+app.use(
+    bodyParser.urlencoded({
+        extended: true,
+    })
+)
+app.use(
+  bodyParser.json({
+    verify: _verifyRequestSignature.bind()
+  })
+);
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept"
+    );
+    next();
+})
+
+
+/*
+██████   ██████  ██    ██ ████████ ███████ ███████
+██   ██ ██    ██ ██    ██    ██    ██      ██
+██████  ██    ██ ██    ██    ██    █████   ███████
+██   ██ ██    ██ ██    ██    ██    ██           ██
+██   ██  ██████   ██████     ██    ███████ ███████
+*/
+const webhook = require("./routes/webhook");
+app.use("/webhook", webhook);
+
 
 
 /*

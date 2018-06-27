@@ -19,6 +19,7 @@
   "homepage": "https://github.com/crazywolf132/YoungBlood#readme",
   "dependencies": {
     "body-parser": "^1.18.3",
+    "compromise": "^11.11.0",
     "eventemitter3": "^3.1.0",
     "express": "^4.16.3",
     "morgan": "^1.9.0",
