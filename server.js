@@ -39,8 +39,12 @@ const express = require("express");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 
+const presets = require("./helper/presets");
+const config = require("./config/config");
+
 const app = express();
 const port = process.env.PORT || 80;
+const token = config.accessToken;
 
 
 /*
@@ -120,6 +124,14 @@ var status = {}
 // The exports...
 var share = (module.exports = {});
 
+
+share.db = status;
+
+share.sendOff = (sender, message, options) => {
+    sendMessage(sender, message, options);
+}
+
+
 /**
  * This function is used for showing the sender that we have recieved their message...
  * Eventually I would like to make it so the first user only gets this once the second user has seen the message.
@@ -159,10 +171,14 @@ share.handle = (message, sender) => {
         if (sender in status) {
             // Guess we dont need to ask them any questions... We already have their information.
             // We just need to connect them to someone.
+            // or check to see if they have entered a known command.
+
         } else {
             // This person is brand new. Lets get them setup.
             // We will send them a few messages asking for some details, aswell as saying what this service is.
             // Aswell as what information we will be keeping and such.
+            status[sender] = {}
+            status[sender].username = ""
         }
     }
 
@@ -197,6 +213,58 @@ sendRequest = (body, endpoint, method) => {
         .catch(err => console.log(`Error sending message: ${err}`));
 }
 
+/**
+ * Used for proccessing the message to send to whoever.
+ * @param {String} userID
+ * @param {String|Object} message
+ * @param {Object} options
+ */
+sendMessage = (userID, message, options) => {
+  const recipient = _createRecipient(userID);
+  const messagingType = options && options.messagingType;
+  const notificationType = options && options.notificationType;
+  const tag = options && options.tag;
+  const onDelivery = options && options.onDelivery;
+  const onRead = options && options.onRead;
+  const reqBody = {
+    recipient,
+    message,
+    messaging_type: messagingType || "RESPONSE"
+  };
+
+  // There are optional params, only add them to the request body
+  // if they are definied.
+  if (notificationType) {
+    reqBody.notification_type = notificationType;
+  }
+  if (tag) {
+    reqBody.tag = tag;
+  }
+
+  const req = () =>
+    sendRequest(reqBody).then(json => {
+      if (typeof onDelivery === "function") {
+        EventEmitter.once("delivery", onDelivery);
+      }
+      if (typeof onRead === "function") {
+        EventEmitter.once("read", onRead);
+      }
+      return json;
+    });
+  if (options && options.typing) {
+    const autoTimeout =
+      message && message.text ? message.text.length * 10 : 1000;
+    const timeout =
+      typeof options.typing === "number" ? options.typing : autoTimeout;
+    return sendTypingIndicator(userID, timeout).then(req);
+  }
+  return req();
+};
+
+/**
+ * This function is used to extract the users ID if it is in an object.
+ * @param {Object|String} recipient
+ */
 _createRecipient = (recipient) => {
     return (typeof recipient === 'object') ? recipient : { id: recipient };
 }
@@ -211,5 +279,5 @@ _createRecipient = (recipient) => {
 */
 setTimeout(() => {
   app.listen(port);
-  module.exports.logger("NORMAL", `Magic happens on port ${port}\n\n`);
+  console.log(`Enlightenment on port ${port}\n\n`);
 }, 1000);
