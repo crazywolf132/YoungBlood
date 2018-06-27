@@ -2,6 +2,8 @@ var express = require("express");
 var router = express.Router();
 const core = require(process.cwd() + "/server");
 
+console.log(core)
+
 router.route("/").post((req, res, next) => {
 
     let messaging_events = req.body.entry[0].messaging;

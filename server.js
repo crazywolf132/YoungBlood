@@ -42,7 +42,6 @@ const fetch = require("node-fetch");
 const EventEmitter = require("eventemitter3");
 const nlp = require("compromise");
 
-const presets = require("./helper/presets");
 const config = require("./config/config");
 const messenger = require("./helper/messenger");
 
@@ -61,7 +60,8 @@ const appSecret = config.appSecret;
 */
 
 // The in-memory database...
-
+// The exports...
+var share = (module.exports = {});
 /**
  * All information we keep is purely a username, and an age. Along with userID.
  * We keep this information so we can inform the Listener when you connect. 
@@ -85,15 +85,10 @@ var connections = {}
  * For example, it will remember ur information such as BDAY, USERNAME.
  * It will also keep information such as whether or not you are a listener
  */
-var status = {}
+share.db = status = {};
 
 
 
-// The exports...
-var share = (module.exports = {});
-
-
-share.db = status;
 
 /**
  * This function is used for showing the sender that we have recieved their message...
@@ -108,6 +103,8 @@ share.seenMessage = (sender) => {
     });
 };
 
+// Loading this here so then it gets access to the above exports...
+const presets = require("./helper/presets");
 
 /**
  * This is where every message is processed. Everything that comes through the bot,
@@ -143,62 +140,11 @@ share.handle = (message, sender) => {
             // Aswell as what information we will be keeping and such.
             status[sender] = {}
             status[sender].username = ""
-            status[sender].gettingStartedStage == 0;
+            status[sender].gettingStartedStage = 0;
             presets.getStarted(messenger.respond, sender);
         }
     }
 
-}
-
-
-
-_verifyRequestSignature = (req, res, buf) => {
-  var signature = req.headers["x-hub-signature"];
-  if (!signature) {
-    throw new Error("Couldn't validate the request signature.");
-  } else {
-    var elements = signature.split("=");
-    var method = elements[0];
-    var signatureHash = elements[1];
-    var expectedHash = crypto
-      .createHmac("sha1", appSecret)
-      .update(buf)
-      .digest("hex");
-
-    if (signatureHash != expectedHash) {
-      throw new Error("Couldn't validate the request signature.");
-    }
-  }
-};
-
-
-/*
- ██████  ██████  ██████  ███████
-██      ██    ██ ██   ██ ██
-██      ██    ██ ██████  █████
-██      ██    ██ ██   ██ ██
- ██████  ██████  ██   ██ ███████
-*/
-app.use(morgan("dev"));
-app.use(bodyParser.json());
-app.use(
-    bodyParser.urlencoded({
-        extended: true,
-    })
-)
-app.use(
-  bodyParser.json({
-    verify: _verifyRequestSignature.bind()
-  })
-);
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept"
-    );
-    next();
-})
 
 
 /*
@@ -208,8 +154,7 @@ app.use((req, res, next) => {
 ██   ██ ██    ██ ██    ██    ██    ██           ██
 ██   ██  ██████   ██████     ██    ███████ ███████
 */
-const webhook = require("./routes/webhook");
-app.use("/webhook", webhook);
+
 
 
 
@@ -220,7 +165,3 @@ app.use("/webhook", webhook);
 ██      ██      ██    ██    ██      ██  ██ ██ ██      ██   ██
 ███████ ██ ███████    ██    ███████ ██   ████ ███████ ██   ██
 */
-setTimeout(() => {
-  app.listen(port);
-  console.log(`Enlightenment on port ${port}\n\n`);
-}, 1000);
