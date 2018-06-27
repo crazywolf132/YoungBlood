@@ -1,6 +1,6 @@
 var share = (module.exports = {});
 var positiveWords = require("positiveWords");
-var negativeWords = require("negaticeWords");
+var negativeWords = require("negativeWords");
 
 share.positivity = (incomming) => {
 
