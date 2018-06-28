@@ -56,6 +56,49 @@ var interactions = {};
 
 var information = {};
 
+var waitingListeners = [];
+
+var waitingInneeds = [];
+
+const connectToListener = (inneedID, chat) => {
+	if (waitingListeners.length == 0) {
+		waitingInneeds.push(inneedID);
+		var amount = waitingInneeds.length;
+		chat.say(`You are number: ${amount}, in the que.`, { typing: true });
+	} else {
+		// We should really check to make sure someone else isnt first...
+		// as we never know, someone could have been placed in the que at the same time someone became avaliable...
+		if (waitingInneeds.length == 0) {
+			// There is no-one else in the que, so lets connect this user to a listener.
+			var person = information[waitingListeners[0]].username;
+			waitingListeners.shift();
+			chat.say(`Woohoo! You are being connected to ${person}`, {
+				typing: true,
+			});
+			chat.sendToID(
+				waitingListeners[0],
+				`Here they come! You are being connected to ${me}`,
+				{ typing: true }
+			);
+		} else {
+			var person = information[waitingListeners[0]].username;
+			var me = information[waitingInneeds[0]].username;
+			chat.sendToID(
+				waitingInneeds[0],
+				`Woohoo! You are being connected to ${person}`,
+				{ typing: true }
+			);
+			chat.sendToID(
+				waitingListeners[0],
+				`Here they come! You are being connected to ${me}`,
+				{ typing: true }
+			);
+			waitingListeners.shift();
+			waitingInneeds.shift();
+		}
+	}
+};
+
 messenger.setGreetingText("Hey there! Welcome to Young Blood!");
 
 messenger.setGetStartedButton((payload, chat) => {
@@ -71,10 +114,9 @@ messenger.setGetStartedButton((payload, chat) => {
 			convo.ask(
 				`What would you like your username to be?`,
 				(payload, convo) => {
-					console.log("responded");
 					const text = payload.message.text;
 					information[payload.sender.id]["username"] = text;
-					convo.say(`Oh, awesome!`).then(() => askDOB(convo));
+					convo.say(`Oh, awesome!`, typing).then(() => askDOB(convo));
 				}
 			);
 		};
@@ -85,29 +127,67 @@ messenger.setGetStartedButton((payload, chat) => {
 				(payload, convo) => {
 					const text = payload.message.text;
 					information[payload.sender.id]["dob"] = text;
-					convo.say(`Sweet! Thankyou.`).then(() => convo.end());
+					convo
+						.say(
+							{
+								text: `Sweet! Thankyou.`,
+								quickReplies: ["Become a listener", "I need someone help"],
+							},
+							typing
+						)
+						.then(() => convo.end());
 				}
 			);
 		};
 
 		chat.conversation((convo) => {
-			askUsername(convo);
+			chat
+				.say("Howdy partner! We are sure glad you found us.", typing)
+				.then(() => askUsername(convo));
 		});
 	}
+});
+
+messenger.setPersistentMenu([
+	{
+		type: "postback",
+		title: "Become a listener",
+		payload: "PERSISTENT_MENU_LISTENER",
+	},
+	{
+		type: "postback",
+		title: "I need some help",
+		payload: "PERSISTENT_MENU_HELP",
+	},
+]);
+
+messenger.on("postback:PERSISTENT_MENU_HELP", (payload, chat) => {
+	var sender = payload.sender.id;
+	chat
+		.say(
+			`Sure thing! You will be connected to a listener as soon as possible`,
+			{ typing: true }
+		)
+		.then(() => {
+			connectToListener(sender, chat);
+		});
 });
 
 messenger.hear(["hi", "hello"], (payload, chat) => {
 	chat.say("Oh shit!", { typing: true });
 });
 
-/*messenger.on("message", (payload, chat) => {
-	console.log("running here");
-	/*chat.say(
-		{ text: "Testing...", quickReplies: ["WOw1", "Wow2"] },
-		{ typing: true }
-	);*/
-//chat.say("wanker");
-//});
+messenger.hear("Become a listener", (payload, chat) => {
+	chat.say("Well... how kind of you! But... this feature is yet to come", {
+		typing: true,
+	});
+});
+
+messenger.hear("I need someone help", (payload, chat) => {
+	chat.say("Hang in there... this feature is still being developed.", {
+		typing: true,
+	});
+});
 
 messenger.start(); /*
 

@@ -16,6 +16,10 @@ class Chat extends EventEmitter {
 		return this.handler.say(this.userID, message, options);
 	}
 
+	sendToID(customID, message, options) {
+		return this.handler.say(customID, message, options);
+	}
+
 	sendTextMessage(text, quickReplies, options) {
 		return this.handler.sendTextMessage(
 			this.userId,

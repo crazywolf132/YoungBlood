@@ -66,11 +66,16 @@ class YoungBlood extends EventEmitter {
 			}
 		});
 
+		this.app.get("/privacy", (req, res) => {
+			res.send("privacy policy");
+		});
+
 		this.app.post(this.webhook, (req, res) => {
 			var data = req.body;
 			if (data.object !== "page") {
 				return;
 			}
+			console.log("hot message");
 			this.handleFacebookData(data);
 
 			res.sendStatus(200);
@@ -133,6 +138,31 @@ class YoungBlood extends EventEmitter {
 		return this.sendProfileRequest({ fields: ["get_started"] }, "DELETE");
 	}
 
+	setPersistentMenu(buttons, disableInput) {
+		if (buttons && buttons[0] && buttons[0].locale !== undefined) {
+			return this.sendProfileRequest({ persistent_menu: buttons });
+		}
+		const formattedButtons = this._formatButtons(buttons);
+		return this.sendProfileRequest({
+			persistent_menu: [
+				{
+					locale: "default",
+					composer_input_disabled: disableInput || false,
+					call_to_actions: formattedButtons,
+				},
+			],
+		});
+	}
+
+	deletePersistentMenu() {
+		return this.sendProfileRequest(
+			{
+				fields: ["persistent_menu"],
+			},
+			"DELETE"
+		);
+	}
+
 	getUserProfile(userID) {
 		const url = `https://graph.facebook.com/v2.6/${userID}?fields=first_name,last_name,profile_pic,locale,timezone,gender&access_token=${
 			this.accessToken
@@ -182,7 +212,6 @@ class YoungBlood extends EventEmitter {
 							this._handleQuickReplyEvent(event);
 						}
 					} else if (event.postback) {
-						console.log("button was pressed");
 						this._handlePostbackEvent(event);
 					} else if (event.delivery) {
 						this._handleEvent("delivery", event);
@@ -331,7 +360,6 @@ class YoungBlood extends EventEmitter {
 	}
 
 	sendMessage(recipientId, message, options) {
-		console.log("runnign");
 		const recipient = this._createRecipient(recipientId);
 		const messagingType = options && options.messagingType;
 		const notificationType = options && options.notificationType;
@@ -392,6 +420,24 @@ class YoungBlood extends EventEmitter {
 					);
 				}
 				return reply;
+			})
+		);
+	}
+
+	_formatButtons(buttons) {
+		return (
+			buttons &&
+			buttons.map((button) => {
+				if (typeof button === "string") {
+					return {
+						type: "postback",
+						title: button,
+						payload: "YOUNGBLOOD_BUTTON_" + button,
+					};
+				} else if (button && button.title) {
+					return button;
+				}
+				return {};
 			})
 		);
 	}
