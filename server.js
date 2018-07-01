@@ -70,7 +70,8 @@ const connectToListener = (inneedID, chat) => {
 		// as we never know, someone could have been placed in the que at the same time someone became avaliable...
 		if (waitingInneeds.length == 0) {
 			// There is no-one else in the que, so lets connect this user to a listener.
-			var person = information[waitingListeners[0]].username;
+			//var person = information[waitingListeners[0]].username;
+			var person = waitingListeners[0];
 			waitingListeners.shift();
 			chat.say(`Woohoo! You are being connected to ${person}`, {
 				typing: true,
@@ -96,6 +97,29 @@ const connectToListener = (inneedID, chat) => {
 			waitingListeners.shift();
 			waitingInneeds.shift();
 		}
+	}
+};
+
+const connectToInNeed = (Listener, chat) => {
+	if (waitingInneeds.length == 0) {
+		waitingListeners.push(Listener);
+		var amount = waitingListeners.length;
+		chat.say(`You are number: ${amount}, in the que.`, { typing: true });
+	} else {
+		// We just need to connect the listener with the first person in the in-needs list.
+		var person = information[waitingInneeds[0]].username;
+		var me = information[Listener].username;
+		chat.sendToID(
+			Listener,
+			`Here they come! You are being connected to ${person}.`,
+			{ typing: true }
+		);
+		chat.sendToID(
+			waitingInneeds[0],
+			`Woohoo! You are being connect to ${me}.`,
+			{ typing: true }
+		);
+		waitingInneeds.shift();
 	}
 };
 
@@ -173,20 +197,47 @@ messenger.on("postback:PERSISTENT_MENU_HELP", (payload, chat) => {
 		});
 });
 
+messenger.on("postback:PERSISTENT_MENU_LISTENER", (payload, chat) => {
+	var sender = payload.sender.id;
+	chat
+		.say(`Thankyou! We will connect you to someone in-need soon.`, {
+			typing: true,
+		})
+		.then(() => {
+			connectToInNeed(sender, chat);
+		});
+});
+
 messenger.hear(["hi", "hello"], (payload, chat) => {
 	chat.say("Oh shit!", { typing: true });
 });
 
 messenger.hear("Become a listener", (payload, chat) => {
-	chat.say("Well... how kind of you! But... this feature is yet to come", {
-		typing: true,
-	});
+	var sender = payload.sender.id;
+	chat
+		.say(`Thankyou! We will connect you to someone in-need soon.`, {
+			typing: true,
+		})
+		.then(() => {
+			connectToInNeed(sender, chat);
+		});
 });
 
 messenger.hear("I need someone help", (payload, chat) => {
-	chat.say("Hang in there... this feature is still being developed.", {
-		typing: true,
-	});
+	var sender = payload.sender.id;
+	chat
+		.say(
+			`Sure thing! You will be connected to a listener as soon as possible`,
+			{ typing: true }
+		)
+		.then(() => {
+			connectToListener(sender, chat);
+		});
+});
+
+messenger.on("message", (payload, chat) => {
+	if (payload.sender.id in interactions) {
+	}
 });
 
 messenger.start(); /*

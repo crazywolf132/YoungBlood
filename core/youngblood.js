@@ -75,7 +75,6 @@ class YoungBlood extends EventEmitter {
 			if (data.object !== "page") {
 				return;
 			}
-			console.log("hot message");
 			this.handleFacebookData(data);
 
 			res.sendStatus(200);
