@@ -60,9 +60,57 @@ var waitingListeners = [];
 
 var waitingInneeds = [];
 
-const connectToListener = (inneedID, chat) => {
+const connect2people = (person1, person2) => {
+	information[person1].waiting = false;
+	information[person2].waiting = false;
+	information[person1].connected = true;
+	information[person2].connected = true;
+	interactions[person1] = person2;
+	interactions[person2] = person1;
+};
+
+const connectToListener = (inneed, chat) => {
+	// We just need to make sure they arent already in a chat...
+	if (
+		information[inneed].waiting == false &&
+		information[inneed].connected == false
+	) {
+		// Starting off a typing const...
+		const typing = { typing: true };
+		// First check to see if there are any listeners waiting...
+		if (waitingListeners.length == 0) {
+			// There are no avaliable listeners.
+			// We will just add the inneed to the waiting list and let them know.
+			waitingInneeds.push(inneed);
+			// Setting them to waiting status...
+			information[inneed].waiting = true;
+			var amount = waitingInneeds.length;
+			chat.say(`You are number: ${amount}, in the que.`, typing);
+		} else {
+			// There are some listeners avaliable.
+			// We will now connect to the first waiting Listener...
+			var person = information[waitingListeners[0]].username;
+			var me = information[inneed].username;
+			chat.sendToID(
+				waitingListeners[0],
+				`Here they come! You are being connected to ${me}`,
+				typing
+			);
+			chat.sendToID(
+				inneed,
+				`Woohoo! You are being connected to ${person}`,
+				typing
+			);
+			connect2people(inneed, waitingListeners[0]);
+			waitingListeners.shift();
+		}
+	}
+};
+
+/**const connectToListener = (inneedID, chat) => {
 	if (waitingListeners.length == 0) {
 		waitingInneeds.push(inneedID);
+		information[inneedID].waiting = true;
 		var amount = waitingInneeds.length;
 		chat.say(`You are number: ${amount}, in the que.`, { typing: true });
 	} else {
@@ -72,16 +120,18 @@ const connectToListener = (inneedID, chat) => {
 			// There is no-one else in the que, so lets connect this user to a listener.
 			//var person = information[waitingListeners[0]].username;
 			var person = waitingListeners[0];
-			waitingListeners.shift();
-			chat.say(`Woohoo! You are being connected to ${person}`, {
-				typing: true,
-			});
 			chat.sendToID(
 				waitingListeners[0],
 				`Here they come! You are being connected to ${me}`,
 				{ typing: true }
 			);
+			chat.sendToID(inneedID, `Woohoo! You are being connected to ${person}`, {
+				typing: true,
+			});
+			waitingListeners.shift();
 		} else {
+			// This is for when there is someone else first...
+			// We need to also add them to the array.
 			var person = information[waitingListeners[0]].username;
 			var me = information[waitingInneeds[0]].username;
 			chat.sendToID(
@@ -99,28 +149,39 @@ const connectToListener = (inneedID, chat) => {
 		}
 	}
 };
-
+**/
 const connectToInNeed = (Listener, chat) => {
-	if (waitingInneeds.length == 0) {
-		waitingListeners.push(Listener);
-		var amount = waitingListeners.length;
-		chat.say(`You are number: ${amount}, in the que.`, { typing: true });
-	} else {
-		// We just need to connect the listener with the first person in the in-needs list.
-		var person = information[waitingInneeds[0]].username;
-		var me = information[Listener].username;
-		chat.sendToID(
-			Listener,
-			`Here they come! You are being connected to ${person}.`,
-			{ typing: true }
-		);
-		chat.sendToID(
-			waitingInneeds[0],
-			`Woohoo! You are being connect to ${me}.`,
-			{ typing: true }
-		);
-		waitingInneeds.shift();
+	if (
+		information[Listener].waiting == false &&
+		information[Listener].connected == false
+	) {
+		if (waitingInneeds.length == 0) {
+			waitingListeners.push(Listener);
+			var amount = waitingListeners.length;
+			information[Listener].waiting = true;
+			chat.say(`You are number: ${amount}, in the que.`, { typing: true });
+		} else {
+			// We just need to connect the listener with the first person in the in-needs list.
+			var person = information[waitingInneeds[0]].username;
+			var me = information[Listener].username;
+			chat.sendToID(
+				Listener,
+				`Here they come! You are being connected to ${person}.`,
+				{ typing: true }
+			);
+			chat.sendToID(
+				waitingInneeds[0],
+				`Woohoo! You are being connect to ${me}.`,
+				{ typing: true }
+			);
+			connect2people(Listener, waitingInneeds[0]);
+			waitingInneeds.shift();
+		}
 	}
+};
+
+const passOntoSender = (RecieverID, chat, message) => {
+	chat.sendToID(RecieverID, message, { typing: true });
 };
 
 messenger.setGreetingText("Hey there! Welcome to Young Blood!");
@@ -132,6 +193,8 @@ messenger.setGetStartedButton((payload, chat) => {
 		chat.say(`Welcome back ${username}!`);
 	} else {
 		information[payload.sender.id] = {};
+		information[payload.sender.id].waiting = false;
+		information[payload.sender.id].connected = false;
 		interactions[payload.sender.id] = {};
 
 		const askUsername = (convo) => {
@@ -155,7 +218,7 @@ messenger.setGetStartedButton((payload, chat) => {
 						.say(
 							{
 								text: `Sweet! Thankyou.`,
-								quickReplies: ["Become a listener", "I need someone help"],
+								quickReplies: ["Become a listener", "I need some help"],
 							},
 							typing
 						)
@@ -223,7 +286,7 @@ messenger.hear("Become a listener", (payload, chat) => {
 		});
 });
 
-messenger.hear("I need someone help", (payload, chat) => {
+messenger.hear("I need some help", (payload, chat) => {
 	var sender = payload.sender.id;
 	chat
 		.say(
@@ -236,7 +299,11 @@ messenger.hear("I need someone help", (payload, chat) => {
 });
 
 messenger.on("message", (payload, chat) => {
-	if (payload.sender.id in interactions) {
+	if (
+		payload.sender.id in interactions &&
+		information[payload.sender.id].connected == true
+	) {
+		passOntoSender(interactions[payload.sender.id], chat, payload.message.text);
 	}
 });
 
