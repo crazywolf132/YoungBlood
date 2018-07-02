@@ -69,6 +69,22 @@ const connect2people = (person1, person2) => {
 	interactions[person2] = person1;
 };
 
+const createMessageMenu = (person) => {
+	var type = information[person].status;
+	var quickReplies = [];
+	var otherPerson = information[interactions[person]].username;
+	if (type == "listener") {
+		quickReplies.push(`Talking to: ${otherPerson}`);
+		quickReplies.push(`I can't handle this`);
+		quickReplies.push(`End Chat`);
+	} else {
+		quickReplies.push(`Talking to: ${otherPerson}`);
+		quickReplies.push(`Report Listener`);
+		quickReplies.push(`End Chat`);
+	}
+	return quickReplies;
+};
+
 const connectToListener = (inneed, chat) => {
 	// We just need to make sure they arent already in a chat...
 	if (
@@ -107,49 +123,6 @@ const connectToListener = (inneed, chat) => {
 	}
 };
 
-/**const connectToListener = (inneedID, chat) => {
-	if (waitingListeners.length == 0) {
-		waitingInneeds.push(inneedID);
-		information[inneedID].waiting = true;
-		var amount = waitingInneeds.length;
-		chat.say(`You are number: ${amount}, in the que.`, { typing: true });
-	} else {
-		// We should really check to make sure someone else isnt first...
-		// as we never know, someone could have been placed in the que at the same time someone became avaliable...
-		if (waitingInneeds.length == 0) {
-			// There is no-one else in the que, so lets connect this user to a listener.
-			//var person = information[waitingListeners[0]].username;
-			var person = waitingListeners[0];
-			chat.sendToID(
-				waitingListeners[0],
-				`Here they come! You are being connected to ${me}`,
-				{ typing: true }
-			);
-			chat.sendToID(inneedID, `Woohoo! You are being connected to ${person}`, {
-				typing: true,
-			});
-			waitingListeners.shift();
-		} else {
-			// This is for when there is someone else first...
-			// We need to also add them to the array.
-			var person = information[waitingListeners[0]].username;
-			var me = information[waitingInneeds[0]].username;
-			chat.sendToID(
-				waitingInneeds[0],
-				`Woohoo! You are being connected to ${person}`,
-				{ typing: true }
-			);
-			chat.sendToID(
-				waitingListeners[0],
-				`Here they come! You are being connected to ${me}`,
-				{ typing: true }
-			);
-			waitingListeners.shift();
-			waitingInneeds.shift();
-		}
-	}
-};
-**/
 const connectToInNeed = (Listener, chat) => {
 	if (
 		information[Listener].waiting == false &&
@@ -181,7 +154,14 @@ const connectToInNeed = (Listener, chat) => {
 };
 
 const passOntoSender = (RecieverID, chat, message) => {
-	chat.sendToID(RecieverID, message, { typing: true });
+	//We are just going to get the quick replies menu and add it...
+	var qReplies = createMessageMenu(RecieverID);
+	chat.sendToID(
+		RecieverID,
+		{ text: message, quickReplies: qReplies },
+		{ typing: true }
+	);
+	//chat.sendToID(RecieverID, message, { typing: true });
 };
 
 messenger.setGreetingText("Hey there! Welcome to Young Blood!");
