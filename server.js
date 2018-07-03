@@ -32,7 +32,7 @@
  * This bot is not being created as a replacement to an organsiation such as suicide-hotline. Instead
  * it is a replacement to other peer support websites and applications/services.
  */
-
+const nlp = require("compromise");
 const config = require("./config/config");
 
 ("use strict");
@@ -60,6 +60,11 @@ var waitingListeners = [];
 
 var waitingInneeds = [];
 
+/**
+ *	To make it easier on the user to distinguish what messages are from a human,
+ *	and what are from the bot, we will use some emojies...
+ h */
+
 const connect2people = (person1, person2) => {
 	information[person1].waiting = false;
 	information[person2].waiting = false;
@@ -72,7 +77,8 @@ const connect2people = (person1, person2) => {
 const createMessageMenu = (person) => {
 	var type = information[person].status;
 	var quickReplies = [];
-	var otherPerson = information[interactions[person]].username;
+	var otherPerson = interactions[person];
+	var otherPerson = information[otherPerson].username;
 	if (type == "listener") {
 		quickReplies.push(`Talking to: ${otherPerson}`);
 		quickReplies.push(`I can't handle this`);
@@ -101,22 +107,26 @@ const connectToListener = (inneed, chat) => {
 			// Setting them to waiting status...
 			information[inneed].waiting = true;
 			var amount = waitingInneeds.length;
-			chat.say(`You are number: ${amount}, in the que.`, typing);
+			chat.say(`🤖 You are number: ${amount}, in the que.`, typing);
 		} else {
 			// There are some listeners avaliable.
 			// We will now connect to the first waiting Listener...
 			var person = information[waitingListeners[0]].username;
 			var me = information[inneed].username;
+			information[inneed].status = "inneed";
+			information[waitingListeners[0]].status = "listener";
+
 			chat.sendToID(
 				waitingListeners[0],
-				`Here they come! You are being connected to ${me}`,
+				`🤖 Here they come! You are being connected to ${me}`,
 				typing
 			);
 			chat.sendToID(
 				inneed,
-				`Woohoo! You are being connected to ${person}`,
+				`🤖 Woohoo! You are being connected to ${person}`,
 				typing
 			);
+
 			connect2people(inneed, waitingListeners[0]);
 			waitingListeners.shift();
 		}
@@ -132,30 +142,54 @@ const connectToInNeed = (Listener, chat) => {
 			waitingListeners.push(Listener);
 			var amount = waitingListeners.length;
 			information[Listener].waiting = true;
-			chat.say(`You are number: ${amount}, in the que.`, { typing: true });
+			chat.say(`🤖 You are number: ${amount}, in the que.`, { typing: true });
 		} else {
 			// We just need to connect the listener with the first person in the in-needs list.
 			var person = information[waitingInneeds[0]].username;
 			var me = information[Listener].username;
+			information[Listener].status = "listener";
+			information[waitingInneeds[0]].status = "inneed";
+
 			chat.sendToID(
 				Listener,
-				`Here they come! You are being connected to ${person}.`,
+				`🤖 Here they come! You are being connected to ${person}.`,
 				{ typing: true }
 			);
 			chat.sendToID(
 				waitingInneeds[0],
-				`Woohoo! You are being connect to ${me}.`,
+				`🤖 Woohoo! You are being connect to ${me}.`,
 				{ typing: true }
 			);
+
 			connect2people(Listener, waitingInneeds[0]);
 			waitingInneeds.shift();
 		}
 	}
 };
 
+const disconnectPeople = (person, chat) => {
+	// We only need the person who asked for the chat to end.
+	// We will be able to get their partner from it.
+	var personName = information[person].username;
+	chat.sendToID(
+		interactions[person],
+		`🤖 ${personName}, has disconnected the chat.`,
+		{ typing: true }
+	);
+	chat.sendToID(person, `🤖 You have ended the chat.`, { typing: true });
+
+	information[person].connected = false;
+	information[interactions[person]].connected = false;
+	information[person].status = "";
+	information[interactions[person]].status = "";
+	delete interactions[interactions[person]];
+	delete interactions[person];
+};
+
 const passOntoSender = (RecieverID, chat, message) => {
 	//We are just going to get the quick replies menu and add it...
 	var qReplies = createMessageMenu(RecieverID);
+
 	chat.sendToID(
 		RecieverID,
 		{ text: message, quickReplies: qReplies },
@@ -232,7 +266,7 @@ messenger.on("postback:PERSISTENT_MENU_HELP", (payload, chat) => {
 	var sender = payload.sender.id;
 	chat
 		.say(
-			`Sure thing! You will be connected to a listener as soon as possible`,
+			`🤖 Sure thing! You will be connected to a listener as soon as possible`,
 			{ typing: true }
 		)
 		.then(() => {
@@ -243,7 +277,7 @@ messenger.on("postback:PERSISTENT_MENU_HELP", (payload, chat) => {
 messenger.on("postback:PERSISTENT_MENU_LISTENER", (payload, chat) => {
 	var sender = payload.sender.id;
 	chat
-		.say(`Thankyou! We will connect you to someone in-need soon.`, {
+		.say(`T🤖 hankyou! We will connect you to someone in-need soon.`, {
 			typing: true,
 		})
 		.then(() => {
@@ -251,14 +285,41 @@ messenger.on("postback:PERSISTENT_MENU_LISTENER", (payload, chat) => {
 		});
 });
 
-messenger.hear(["hi", "hello"], (payload, chat) => {
-	chat.say("Oh shit!", { typing: true });
+messenger.hear("Report listener", (payload, chat) => {
+	// For this function we need to get the listener of this client...
+	// We then need to notify an admin...
+	// We need to workout if we keep the last 10 or so listeners messages.
+	// so then we can easily see them or whatnot.
+	chat
+		.say(`🤖 Dont worry. We have reported them to an admin.`, { typing: true })
+		.then(() => {
+			chat.say(
+				`🤖 Just letting you know... you are still connected to the chat.`,
+				{ typing: true }
+			);
+		});
+});
+
+messenger.hear("I can't handle this", (payload, chat) => {
+	var typing = { typing: true };
+	chat.say(`🤖 Dont worry, we cant all handle everything!`, typing).then(() => {
+		chat.say(
+			`🤖 This chat will be escalated and taken off your hands.`,
+			typing
+		);
+	});
+});
+
+messenger.hear("End Chat", (payload, chat) => {
+	chat.say(`🤖 Thankyou for your chat. We hope you had a good expirence.`, {
+		typing: true,
+	});
 });
 
 messenger.hear("Become a listener", (payload, chat) => {
 	var sender = payload.sender.id;
 	chat
-		.say(`Thankyou! We will connect you to someone in-need soon.`, {
+		.say(`🤖 Thankyou! We will connect you to someone in-need soon.`, {
 			typing: true,
 		})
 		.then(() => {
@@ -270,7 +331,7 @@ messenger.hear("I need some help", (payload, chat) => {
 	var sender = payload.sender.id;
 	chat
 		.say(
-			`Sure thing! You will be connected to a listener as soon as possible`,
+			`🤖 Sure thing! You will be connected to a listener as soon as possible`,
 			{ typing: true }
 		)
 		.then(() => {
